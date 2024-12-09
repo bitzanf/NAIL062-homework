@@ -1,9 +1,11 @@
+a b c d
 a b
 b c
 c d
 d a
 a c
 
+x y z
 x y
 y z
 z x

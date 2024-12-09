@@ -31,7 +31,7 @@ def make_graph(vertex_count: int, edge_count: int, vertex_name: str):
     graph = Graph()
     # generate all vertices nicely numbered
     for v in range(vertex_count):
-        graph.get_vertex_idx(f'{vertex_name}{v}')
+        graph.add_vertex(f'{vertex_name}{v}')
     graph.prepare_edges()
 
     # now generate random edges
@@ -48,7 +48,7 @@ def expand_graph(vertex_count: int, edge_count: int, graph: Graph, graph_edge_co
     large_graph = Graph()
     for i in range(vertex_count):
         # "copy" vertices
-        large_graph.get_vertex_idx(f'{vertex_name}{i}')
+        large_graph.add_vertex(f'{vertex_name}{i}')
 
     for row in graph.edges:
         r = []
@@ -72,6 +72,10 @@ def expand_graph(vertex_count: int, edge_count: int, graph: Graph, graph_edge_co
 
 
 def print_graph(graph: Graph):
+    for v in graph.vertex_map:
+        print(v, end=' ')
+    print()
+
     reverse_vertices = {v: k for k, v in graph.vertex_map.items()}
     for start in range(graph.vertex_count):
         for end in range(graph.vertex_count):

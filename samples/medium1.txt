@@ -1,0 +1,18 @@
+v1 v2 v3 v4 v5 v6
+v1 v5
+v5 v4
+v6 v3
+v6 v4
+v4 v3
+v3 v2
+v2 v1
+v4 v1
+v1 v2
+v1 v6
+
+u1 u2 u3 u4 u5
+u1 u3
+u3 u5
+u5 u2
+u2 u4
+u4 u1

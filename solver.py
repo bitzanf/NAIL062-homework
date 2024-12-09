@@ -3,7 +3,6 @@
 from __future__ import annotations
 import argparse
 import subprocess
-import sys
 import time
 from sys import stdin
 from typing import TextIO
@@ -37,10 +36,21 @@ class Graph:
     def load_from_file(input_file: TextIO):
         graph = Graph()
         temp_edges = []
+        first_line = True
         for line in input_file:
             # data end is a blank line
             line = line.strip()
             if len(line) == 0: break
+
+            # first line contains all vertices
+            if first_line:
+                vertices = line.split()
+                for v in vertices:
+                    # add all vertices
+                    graph.add_vertex(v)
+                first_line = False
+                graph.prepare_edges()
+                continue
 
             v_start, v_end = line.split()
 
@@ -48,27 +58,25 @@ class Graph:
             v_start_idx = graph.get_vertex_idx(v_start)
             v_end_idx = graph.get_vertex_idx(v_end)
 
-            # we have to first keep the edges in a temporary array, as we don't know the final graph size yet
+            graph.edges[v_start_idx][v_end_idx] = True
             temp_edges.append((v_start_idx, v_end_idx))
-
-        graph.prepare_edges()
-        for edge in temp_edges:
-            # the edges are directed and stored in a table
-            # row = start idx
-            # col = end idx
-            # [row, col] = 1 <=> edge from start to end
-            graph.edges[edge[0]][edge[1]] = True
 
         return graph
 
-    def get_vertex_idx(self, vertex: str):
+    def add_vertex(self, vertex: str):
         if vertex not in self.vertex_map:
             self.vertex_map[vertex] = self.vertex_count
             idx = self.vertex_count
             self.vertex_count += 1
             return idx
         else:
+            raise RuntimeError(f'Vertex "{vertex}" is already present')
+
+    def get_vertex_idx(self, vertex: str):
+        if vertex in self.vertex_map:
             return self.vertex_map[vertex]
+        else:
+            raise RuntimeError(f'Vertex "{vertex}" is not in the graph')
 
     def get_vertex_degree(self, vertex_idx):
         """

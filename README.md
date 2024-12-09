@@ -14,6 +14,13 @@ výstupní klauzule potom reprezentují různé podmínky takového mapování:
    - tím vznikne až `|E(H)| * |V(G)|^2` kaluzulí
    - kaluzule se přidají jen pokud v G taková hrana neexistuuje
 
+### Optimalizace
+Takto vygenerované klauzule je možné ještě optimalizovat. Pokud stupeň vrcholu v `G` < stupeň vrcholu v `H`, tyto
+vrcholy na sebe nemohou být nikdy namapované. Tím pádem všechny proměnné, které kódují takovéto mapování mohou být
+odstraněny. Pokud se nachází v klauzuli **neznegovaně**, jednoduše se odstraní. Pokud se nachází **negovaně**, celou
+klauzuli je možné odstranit, jelikož bude vždy pravdivá. Pokud se někdy narazí na prázdnou klauzuli, je automaticky
+celý problém neřešitelný a tudíž se neprovádí žádné další zpracování.
+
 ## Použití skriptu
 Skript přebírá z příkazové řádky několik parametrů:
  - `-i`, `--input` - jméno vstupního souboru (nebo `-` pro načítání ze standardního vstupu)
@@ -35,8 +42,9 @@ Výchozí hodnoty:
 ### Formát dat
 Vstup se zadává v podobě 2 grafů; za každým grafem musí být prázdný řádek. Graf se zadává v podobě hran, kdy na každém
 řádku je jedna hrana ve formátu `začátek konec`, kde `začátek` a `konec` jsou libovolné názvy vrcholů (textové i
-číselné). Vždy se jako první zadává `G` (tedy velký, prohledávaný graf) a jako druhý `H` (tedy malý, hledaný graf).  
-Všechny hrany jsou **orientované**
+číselné). Na prvním řádku popisu grafu musí být seznam všech vrcholů. Vždy se jako první zadává `G` (tedy velký, prohledávaný graf) a jako druhý `H` (tedy malý, hledaný graf).  
+Všechny hrany jsou **orientované**.
+
 ---
 Výstup (v pŕípadě, že byl spuštěn solver) má 2 podoby:  
 V případě, že v `G` existuje podgraf izomorfní s `H`, vytiskne se na výstup:
@@ -103,9 +111,33 @@ H = 45 vrcholů, 250 hran
 G = 55 vrcholů, 1000 hran  
 H = 40 vrcholů, 250 hran
 
+---
+`medium1.txt` obsahuje ručně vytvořený splnitelný graf na 6 vrcholech (5-kružnice s vrcholy a spojkami navíc); hledá se
+podgraf izomorfní k 5-kružnici
+
 ## Experimenty
 ### Generátor instancí
 Soubor `generator.py` vytváří instance problémů zakódované ve stejném formátu, který očekává `solver.py`.
 Nastavením `self_edges` v kódu se povolují smyčky v grafu, zbytek parametrů se přebírá z příkazové řádky. Výstupem je
 vždy standardní výstup, chyby se tisknou na standardní chybový výstup.  
-Použití: `generator.py <True|False guarantee subgraph> <n vertices in G> <n edges in G> <n vertices in H> <n edges in H>`
+Použití: `generator.py <True|False guarantee subgraph> <n vertices in G> <n edges in G> <n vertices in H> <n edges in H>`  
+Generátor má 2 režimy provozu, buď generuje 2 naprosto náhodné grafy, nebo vygeneruje 1, který poté rozšíří na větší.
+Tyto režimy se vybírají prvním argumentem generátoru.
+
+Všechny velké instance problémů byly vygenerovány skriptem `generator.py`.  
+*Nutno podotknout, že kvůli způsobu, jakým se uměle generují instance problémů často vzniká mapování* `u1 -> v1` *,*
+`u2 -> v2` *atd.*
+
+---
+Skript dokázal vyřesit problém |V(G)| = 100, |E(G)| = 1600, |V(H)| = 55, |E(H)| = 300 za asi 85 sekund (13 předzpracování
+a 70 samotný SAT solver).
+
+Pro problém |V(G)| = 120, |E(G)| = 2000, |V(H)| = 60, |E(H)| = 800 si Python alokoval 4,5 GB paměti, zpracování trvalo
+35 sekund a SAT solver běžel opět 70.
+
+Problém o velikosti |G| = (120, 3000) |H| = (60, 1700) si vyžádal v Pythonu 9 GB paměti a minutu zpracovávání, a v SAT
+solveru 90 sekund. CNF formule pro tento problém měla 2388991 řádků, 3255 proměnných a 2388990 kaluzulí. SAT solver si
+vyžádal 1444 MB paměti.
+
+Problém o velikosti |G| = (200, 10000) |H| = (80, 6000) si vyžádal v Pythonu přes 40 GB paměti, čímž mému počítači došly
+prostředky (32 GB RAM + 8 GB swap) a zpracování nebylo dokončeno.
