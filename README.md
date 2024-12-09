@@ -19,7 +19,8 @@ Takto vygenerované klauzule je možné ještě optimalizovat. Pokud stupeň vrc
 vrcholy na sebe nemohou být nikdy namapované. Tím pádem všechny proměnné, které kódují takovéto mapování mohou být
 odstraněny. Pokud se nachází v klauzuli **neznegovaně**, jednoduše se odstraní. Pokud se nachází **negovaně**, celou
 klauzuli je možné odstranit, jelikož bude vždy pravdivá. Pokud se někdy narazí na prázdnou klauzuli, je automaticky
-celý problém neřešitelný a tudíž se neprovádí žádné další zpracování.
+celý problém neřešitelný a tudíž se neprovádí žádné další zpracování - vygeneruje se CNF s 0 klauzulemi, o kterém
+prohlásí SAT solver, že je nesplnitelný.
 
 ## Použití skriptu
 Skript přebírá z příkazové řádky několik parametrů:
@@ -38,6 +39,9 @@ Výchozí hodnoty:
  - run solver `True`
  - verbosity `1`
  - print `False`
+
+Samotný SAT solver není součástí řešení, je třeba použít systémovou instalaci nebo stáhnout a zkompilovat z
+[GitHubu](https://github.com/audemard/glucose/).
 
 ### Formát dat
 Vstup se zadává v podobě 2 grafů; za každým grafem musí být prázdný řádek. Graf se zadává v podobě hran, kdy na každém
