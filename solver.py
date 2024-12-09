@@ -3,6 +3,8 @@
 from __future__ import annotations
 import argparse
 import subprocess
+import sys
+import time
 from sys import stdin
 from typing import TextIO
 
@@ -22,10 +24,18 @@ class Graph:
         def __str__(self):
             return f'{self.in_deg} <-; {self.out_deg} ->'
 
-    def __init__(self, input_file: TextIO):
+    def __init__(self):
         self.vertex_map: dict[str, int] = {}
         self.vertex_count: int = 0
+        self.edges: list[list[bool]] = []
 
+    def prepare_edges(self):
+        # 2D array of 0 for every edge combination
+        self.edges = [[False for _ in range(self.vertex_count)] for _ in range(self.vertex_count)]
+
+    @staticmethod
+    def load_from_file(input_file: TextIO):
+        graph = Graph()
         temp_edges = []
         for line in input_file:
             # data end is a blank line
@@ -35,20 +45,21 @@ class Graph:
             v_start, v_end = line.split()
 
             # map the vertex names to numbers
-            v_start_idx = self.get_vertex_idx(v_start)
-            v_end_idx = self.get_vertex_idx(v_end)
+            v_start_idx = graph.get_vertex_idx(v_start)
+            v_end_idx = graph.get_vertex_idx(v_end)
 
             # we have to first keep the edges in a temporary array, as we don't know the final graph size yet
             temp_edges.append((v_start_idx, v_end_idx))
 
-        # 2D array of 0 for every edge combination
-        self.edges = [[False for _ in range(self.vertex_count)] for _ in range(self.vertex_count)]
+        graph.prepare_edges()
         for edge in temp_edges:
             # the edges are directed and stored in a table
             # row = start idx
             # col = end idx
             # [row, col] = 1 <=> edge from start to end
-            self.edges[edge[0]][edge[1]] = True
+            graph.edges[edge[0]][edge[1]] = True
+
+        return graph
 
     def get_vertex_idx(self, vertex: str):
         if vertex not in self.vertex_map:
@@ -98,6 +109,9 @@ class Graph:
     def is_edge(self, start: int, end: int):
         return self.edges[start][end]
 
+    def set_edge(self, start: int, end: int):
+        self.edges[start][end] = True
+
 
 class Literal:
     def __init__(self, sub_vert: int, main_vert: int, positive: bool):
@@ -125,8 +139,8 @@ class Literal:
 class ProblemDescription:
     def __init__(self, input_file: TextIO):
         # load the 2 graphs and create an internal description
-        self.main_graph = Graph(input_file)
-        self.subgraph = Graph(input_file)
+        self.main_graph = Graph.load_from_file(input_file)
+        self.subgraph = Graph.load_from_file(input_file)
         self.main_degrees: list[Graph.VertexDegree] = None
         self.sub_degrees: list[Graph.VertexDegree] = None
 
@@ -235,7 +249,8 @@ class ProblemDescription:
 
 class CNFFormula:
     def __init__(self, problem: ProblemDescription):
-        self.problem = problem
+        self.sub_vertices = problem.subgraph.vertex_map
+        self.main_vertices = problem.main_graph.vertex_map
         self.clauses = problem.clauses
         self.variables = {}
         self.var_count = 0
@@ -262,8 +277,8 @@ class CNFFormula:
 
     def process_result(self, result: tuple[bool, str]):
         reverse_vars = {v: k for k, v in self.variables.items()}
-        reverse_sub_vertices = {v: k for k, v in self.problem.subgraph.vertex_map.items()}
-        reverse_main_vertices = {v: k for k, v in self.problem.main_graph.vertex_map.items()}
+        reverse_sub_vertices = {v: k for k, v in self.sub_vertices.items()}
+        reverse_main_vertices = {v: k for k, v in self.main_vertices.items()}
 
         if result[0]:
             print("The given graph DOES contain a subgraph isomorphic to the other graph")
@@ -301,7 +316,10 @@ def wrap_input(filename: str):
 
 
 def run_solver(solver: str, filename: str, verbosity: int):
-    return subprocess.run([solver, '-model', '-verb=' + str(verbosity), filename], stdout=subprocess.PIPE)
+    start = time.time()
+    process = subprocess.run([solver, '-model', '-verb=' + str(verbosity), filename], stdout=subprocess.PIPE)
+    end = time.time()
+    return process, end - start
 
 
 def parse_result(result: subprocess.CompletedProcess, should_print: bool):
@@ -309,9 +327,10 @@ def parse_result(result: subprocess.CompletedProcess, should_print: bool):
     satisfiable = False
     output: str = result.stdout.decode('utf-8')
     for line in output.split('\n'):
-        if should_print: print(line)
         if len(line) == 0:
             continue
+
+        if should_print: print(line)
         if line[0] == 'c':
             # comment
             continue
@@ -345,41 +364,47 @@ def main():
     parser.add_argument(
         "-s",
         "--solver",
-        default="glucose-syrup"
+        default="glucose-syrup",
+        help="Path to the solver"
     )
     parser.add_argument(
         "-r",
         "--run-solver",
         default=True,
-        action=argparse.BooleanOptionalAction
+        action=argparse.BooleanOptionalAction,
+        help="Run the solver"
     )
     parser.add_argument(
         "-v",
         "--verb",
         default=1,
         type=int,
-        choices=range(0,2),
+        choices=range(0,3),
         help="SAT solver verbosity"
     )
     parser.add_argument(
         "-p",
         "--print",
         default=False,
-        action=argparse.BooleanOptionalAction
+        action=argparse.BooleanOptionalAction,
+        help="Print the SAT solver output"
     )
 
     args = parser.parse_args()
 
+    start = time.time()
     problem = ProblemDescription(wrap_input(args.input))
     cnf = CNFFormula(problem)
+    end = time.time()
 
     with open(args.output, 'w') as file:
         cnf.write(file)
 
     if args.run_solver:
-        result = run_solver(args.solver, args.output, args.verb)
+        result, runtime = run_solver(args.solver, args.output, args.verb)
         parsed = parse_result(result, args.print)
         cnf.process_result(parsed)
-
+        print(f'\nProcessing took approx. {runtime} seconds')
+    print(f'Preprocessing took {end - start} seconds')
 
 if __name__ == "__main__": main()
