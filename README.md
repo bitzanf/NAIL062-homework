@@ -46,7 +46,8 @@ Výchozí hodnoty:
  - print `False`
 
 Samotný SAT solver není součástí řešení, je třeba použít systémovou instalaci nebo stáhnout a zkompilovat z
-[GitHubu](https://github.com/audemard/glucose/).
+[GitHubu](https://github.com/audemard/glucose/). Skript byl vytvořen (a odladěn) pod Linuxem, ale měl by fungovat i na operačním
+systému Windows.
 
 Vygenerovaná CNF formule je k přečtení v souboru, který je určen jako výstupní (`-o`, výchozí hodnota `formula.cnf`).
 
@@ -140,6 +141,9 @@ Všechny velké instance problémů byly vygenerovány skriptem `generator.py`.
 `u2 -> v2` *atd.*
 
 ---
+*Experimenty probíhaly na počítači s Intel(R) Core(TM) i7-4790 CPU, 32GB DDR3-1600 RAM,
+Linux 6.11.10-300.fc41.x86_64 - Fedora Linux 41 (KDE Plasma)*
+
 Skript dokázal vyřesit problém |V(G)| = 100, |E(G)| = 1600, |V(H)| = 55, |E(H)| = 300 za asi 85 sekund (13 předzpracování
 a 70 samotný SAT solver).
 
