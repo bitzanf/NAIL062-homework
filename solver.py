@@ -167,7 +167,7 @@ class ProblemDescription:
         # if 2 vertices are mapped, an edge must exist between them in the searched subgraph
         #   x_sub1_main1 && x_sub2_main2 -> [edge main1 ~> main2]
         #   !x_sub1_main1 || !x_sub2_main2 || [edge main1 ~> main2]
-        #   \forall m1, m2 = V(main) && m1 != m2: \forall e = E(sub): emit(!x_#eStart_#m1 || !x_#eEnd_#m2 || [edge m1 ~> m2])
+        #   \forall e = E(sub): \forall m1, m2 = V(main) && m1 != m2: emit(!x_#eStart_#m1 || !x_#eEnd_#m2 || [edge m1 ~> m2])
         #       => clauses where the edges exist can be ignored, as the condition is always true
 
         # each tuple means mapping subgraph vertex idx -> main graph vertex idx

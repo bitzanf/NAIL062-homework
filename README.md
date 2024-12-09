@@ -7,10 +7,15 @@ velkého grafu `G` (ve kterém hledáme podgrafy).
 Každé takové mapování je reprezentované jednou proměnnou (vrchol v malém grafu -> vrchol ve velkém grafu). Jednotlivé
 výstupní klauzule potom reprezentují různé podmínky takového mapování:
  - každý vrchol z hledaného (malého) grafu se musí namapovat na nějaký vrchol velkého (prohledávaného) grafu
+   - $$ \forall s \in V(\text{sub}): \bigvee_{m \in V(\text{main})} x_{sm} $$
    - tím vznikne `|V(H)| * |V(G)|` kaluzulí
  - žádné 2 vrcholy `H` se nenamapují na stejný vrchol `G`
+   - $$ \forall m \in V(\text{main}): \forall s1 \ne s2 \in V(\text{sub}): \neg x_{s1m} \vee \neg x_{s2m} $$
    - tím vznikne až `|V(G)| * |V(H)|^2` klauzulí
  - pokud jsou 2 vrcholy namapované, musí mezi nimi vést hrana v `H`
+   - $$ x_{s1m1} \wedge x_{s2m2} \implies (m1, m2) \in E(\text{main}) $$
+   - $$ \neg x_{s1m1} \vee \neg x_{s2m2} \vee (m1, m2) \in E(\text{main}) $$
+   - $$ \forall (s1, s2) \in E(\text{sub}): \forall m1 \ne m2 \in V(\text{main}): \text{if} (m1, m2) \notin E(\text{main}): \neg x_{s1m1} \vee \neg x_{s2m2} $$
    - tím vznikne až `|E(H)| * |V(G)|^2` kaluzulí
    - kaluzule se přidají jen pokud v G taková hrana neexistuuje
 
@@ -42,6 +47,8 @@ Výchozí hodnoty:
 
 Samotný SAT solver není součástí řešení, je třeba použít systémovou instalaci nebo stáhnout a zkompilovat z
 [GitHubu](https://github.com/audemard/glucose/).
+
+Vygenerovaná CNF formule je k přečtení v souboru, který je určen jako výstupní (`-o`, výchozí hodnota `formula.cnf`).
 
 ### Formát dat
 Vstup se zadává v podobě 2 grafů; za každým grafem musí být prázdný řádek. Graf se zadává v podobě hran, kdy na každém
