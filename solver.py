@@ -20,6 +20,9 @@ class Graph:
         def __ge__(self, other: Graph.VertexDegree):
             return self.in_deg >= other.in_deg and self.out_deg >= other.out_deg
 
+        def __str__(self):
+            return f'{self.in_deg} <-; {self.out_deg} ->'
+
     def __init__(self, input_file: TextIO):
         self.vertex_map: dict[str, int] = {}
         self.vertex_count: int = 0
@@ -97,6 +100,28 @@ class Graph:
         return self.edges[start][end]
 
 
+class Literal:
+    def __init__(self, sub_vert: int, main_vert: int, positive: bool):
+        self.sub_vert = sub_vert
+        self.main_vert = main_vert
+        self.positive = positive
+
+    def __iter__(self):
+        return iter((self.sub_vert, self.main_vert, self.positive))
+
+    def __str__(self):
+        mapping = f'({self.sub_vert}, {self.main_vert})'
+        return mapping if self.positive else '-' + mapping
+
+    def __hash__(self):
+        # the hash ignores whether it is positive or negative,
+        # as it is still the same variable
+        return hash((self.sub_vert, self.main_vert))
+
+    def __eq__(self, other: Literal):
+        return self.sub_vert == other.sub_vert and self.main_vert == other.main_vert
+
+
 class ProblemDescription:
     def __init__(self, input_file: TextIO):
         # load the 2 graphs and create an internal description
@@ -113,8 +138,8 @@ class ProblemDescription:
         # as such this variable can be removed
 
         # no 2 vertices from the subgraph are mapped to a single vertex in the main graph
-        #   (!x_sub1_main1 || !x_sub1_main2) && (!x_sub1_main2 || !x_sub1_main3) && ... && (!x_sub2_main1 || !x_sub2_main2) && ...
-        #   \forall s = V(sub): \forall m1, m2 = V(main) && m1 != m2: emit(!x_#s_#m1 || !x_#s_#m2)
+        #   (!x_sub1_main1 || !x_sub2_main1) && (!x_sub1_main_2 || !x_sub2_main2) && ...
+        #   \forall m = V(main): \forall s1, s2 = V(sub) && s1 != s2: emit(!x_#s1_#m || !x_#s2_#m)
 
         # if 2 vertices are mapped, an edge must exist between them in the searched subgraph
         #   x_sub1_main1 && x_sub2_main2 -> [edge main1 ~> main2]
@@ -123,74 +148,32 @@ class ProblemDescription:
         #       => clauses where the edges exist can be ignored, as the condition is always true
 
         # each tuple means mapping subgraph vertex idx -> main graph vertex idx
-        self.clauses: list[list[tuple[int, int]]] = []
+        self.clauses: list[list[Literal]] = []
 
-        # first vertex mapping (injective)
-        #==vertex_map_clause = []
+        self.generate_all_vertices_mapped()
+        self.generate_no_2_sub_vertices_mapped_to_same_main()
+        self.generate_all_sub_edges_mapped()
+        self.filter_clauses()
+
+
+    def generate_all_vertices_mapped(self):
         for s in range(self.subgraph.vertex_count):
-            vertex_map_clause = [] #==
+            vertex_map_clause = []
             for m in range(self.main_graph.vertex_count):
-                #main_degree = self.main_graph.get_vertex_degree(m)
-                #sub_degree = self.subgraph.get_vertex_degree(s)
-                # main in degree < sub in degree || main out degree < sub out degree => skip
-                #if main_degree < sub_degree:
-                #    continue
+                vertex_map_clause.append(Literal(s, m, True))
+            self.clauses.append(vertex_map_clause)
 
-                vertex_map_clause.append((s, m))
-            self.clauses.append(vertex_map_clause) #==
-        #==self.clauses.append(vertex_map_clause)
 
-        # then no mapping collides
-        for s in range(self.subgraph.vertex_count):
-            for m1 in range(self.main_graph.vertex_count):
-                for m2 in range(self.main_graph.vertex_count):
-                    if m1 == m2:
+    def generate_no_2_sub_vertices_mapped_to_same_main(self):
+        for m in range(self.main_graph.vertex_count):
+            for s1 in range(self.subgraph.vertex_count):
+                for s2 in range(self.subgraph.vertex_count):
+                    if s1 == s2:
                         continue
-                    self.clauses.append([(-s, -m1), (-s, -m2)]) #==
-                    #==m1_degree = self.main_graph.get_vertex_degree(m1)
-                    #==m2_degree = self.main_graph.get_vertex_degree(m2)
-                    #==sub_degree = self.subgraph.get_vertex_degree(s)
+                    self.clauses.append([Literal(s1, m, False), Literal(s2, m, False)])
 
-                    # negative value means logical negation
-                    #==this_clause = []
 
-                    #==if m1_degree >= sub_degree:
-                    #==    this_clause.append((-s, -m1))
-                    #==if m2_degree >= sub_degree:
-                    #==    this_clause.append((-s, -m2))
-#==
-                    #==if len(this_clause) > 0:
-                    #==    self.clauses.append(this_clause)
-
-        # finally edge preservation
-        """ #==
-        for m1 in range(self.main_graph.vertex_count):
-            for m2 in range(self.main_graph.vertex_count):
-                if m1 == m2:
-                    continue
-
-                m1_degree = self.main_graph.get_vertex_degree(m1)
-                m2_degree = self.main_graph.get_vertex_degree(m2)
-
-                for e in self.subgraph.iterate_edges(True):
-                    # the clause would be always True
-                    if self.main_graph.is_edge(m1, m2):
-                        continue
-
-                    s1 = e[0]
-                    s2 = e[1]
-                    s1_degree = self.main_graph.get_vertex_degree(s1)
-                    s2_degree = self.main_graph.get_vertex_degree(s2)
-
-                    this_clause = []
-                    if m1_degree >= s1_degree:
-                        this_clause.append((-s1, -m1))
-                    if m2_degree >= s2_degree:
-                        this_clause.append((-s2, -m2))
-
-                    if len(this_clause) > 0:
-                        self.clauses.append(this_clause)
-        """
+    def generate_all_sub_edges_mapped(self):
         for e in self.subgraph.iterate_edges(True):
             s1, s2, _ = e
             for m1 in range(self.main_graph.vertex_count):
@@ -199,9 +182,7 @@ class ProblemDescription:
                         continue
 
                     if not self.main_graph.is_edge(m1, m2):
-                        self.clauses.append([(-s1, -m1), (-s2, -m2)])
-
-        self.filter_clauses()
+                        self.clauses.append([Literal(s1, m1, False), Literal(s2, m2, False)])
 
 
     def filter_clauses(self):
@@ -223,15 +204,15 @@ class ProblemDescription:
                 self.clauses.append(filtered)
 
 
-    def filter_single_clause(self, clause: list[tuple[int, int]]):
+    def filter_single_clause(self, clause: list[Literal]):
         clause_post_filter = []
         always_true = False
         for literal in clause:
-            s, m = literal
-            if s < 0:
+            s, m, pos = literal
+            s_deg = self.sub_degrees[s]
+            m_deg = self.main_degrees[m]
+            if not pos:
                 # this literal is negated
-                s_deg = self.sub_degrees[-s]
-                m_deg = self.main_degrees[-m]
                 if m_deg < s_deg:
                     # this literal is always True, as such mapping can never exist
                     # therefore, the entire clause is always True and can be left out
@@ -240,8 +221,6 @@ class ProblemDescription:
                 else:
                     clause_post_filter.append(literal)
             else:
-                s_deg = self.sub_degrees[s]
-                m_deg = self.main_degrees[m]
                 if m_deg < s_deg:
                     # this mapping will never exist, and since it's a positive literal, we can just ignore it
                     pass
@@ -274,7 +253,7 @@ class CNFFormula:
             for literal in clause:
                 # the format requires 1-indexed variables
                 idx = self.variables[literal] + 1
-                if literal[0] < 0:
+                if not literal.positive:
                     idx = -idx
                 output_file.write(f'{idx} ')
             output_file.write('0\n')
@@ -289,25 +268,24 @@ class CNFFormula:
             print("The given graph DOES contain a subgraph isomorphic to the other graph")
             print("Vertex mapping:\n")
             for var in map(int, result[1].split()):
+                # 0 means end of the model
                 if var == 0:
-                    continue
+                    break
 
-                var -= 1
-
-                variable = reverse_vars[abs(var)]
-                s, m = variable
+                variable = reverse_vars[abs(var) - 1]
+                s, m, pos = variable
 
                 sub_vertex = reverse_sub_vertices[abs(s)]
                 main_vertex = reverse_main_vertices[abs(m)]
 
                 if var < 0:
                     # this variable is not true in the final mapping
-                    if s < 0:
-                        # however this map should not have been included, -- -> +
-                        # => this mapping IS in true
+                    if not pos:
+                        # however this map should not have been included, - - = +
+                        # => this mapping IS in the final output
                         print(f'{sub_vertex} -> {main_vertex}')
                 else:
-                    if s >= 0:
+                    if pos:
                         # known positive mapping from the original problem
                         print(f'{sub_vertex} -> {main_vertex}')
 
