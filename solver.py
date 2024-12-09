@@ -3,7 +3,6 @@
 from __future__ import annotations
 import argparse
 import subprocess
-from subprocess import CompletedProcess
 from sys import stdin
 from typing import TextIO
 
@@ -119,6 +118,7 @@ class Literal:
         return hash((self.sub_vert, self.main_vert))
 
     def __eq__(self, other: Literal):
+        # again, we ignore the negation as it is the same variable
         return self.sub_vert == other.sub_vert and self.main_vert == other.main_vert
 
 
@@ -136,6 +136,7 @@ class ProblemDescription:
 
         # if the main vertex has a degree smaller than the subgraph vertex, this mapping will never be true and
         # as such this variable can be removed
+        # if such variable was negated, the entire clause can be omitted, as it is trivially true
 
         # no 2 vertices from the subgraph are mapped to a single vertex in the main graph
         #   (!x_sub1_main1 || !x_sub2_main1) && (!x_sub1_main_2 || !x_sub2_main2) && ...
@@ -148,7 +149,7 @@ class ProblemDescription:
         #       => clauses where the edges exist can be ignored, as the condition is always true
 
         # each tuple means mapping subgraph vertex idx -> main graph vertex idx
-        self.clauses: list[list[Literal]] = []
+        self.clauses: list[set[Literal]] = []
 
         self.generate_all_vertices_mapped()
         self.generate_no_2_sub_vertices_mapped_to_same_main()
@@ -158,9 +159,9 @@ class ProblemDescription:
 
     def generate_all_vertices_mapped(self):
         for s in range(self.subgraph.vertex_count):
-            vertex_map_clause = []
+            vertex_map_clause = set()
             for m in range(self.main_graph.vertex_count):
-                vertex_map_clause.append(Literal(s, m, True))
+                vertex_map_clause.add(Literal(s, m, True))
             self.clauses.append(vertex_map_clause)
 
 
@@ -170,7 +171,7 @@ class ProblemDescription:
                 for s2 in range(self.subgraph.vertex_count):
                     if s1 == s2:
                         continue
-                    self.clauses.append([Literal(s1, m, False), Literal(s2, m, False)])
+                    self.clauses.append({Literal(s1, m, False), Literal(s2, m, False)})
 
 
     def generate_all_sub_edges_mapped(self):
@@ -182,7 +183,7 @@ class ProblemDescription:
                         continue
 
                     if not self.main_graph.is_edge(m1, m2):
-                        self.clauses.append([Literal(s1, m1, False), Literal(s2, m2, False)])
+                        self.clauses.append({Literal(s1, m1, False), Literal(s2, m2, False)})
 
 
     def filter_clauses(self):
@@ -204,8 +205,8 @@ class ProblemDescription:
                 self.clauses.append(filtered)
 
 
-    def filter_single_clause(self, clause: list[Literal]):
-        clause_post_filter = []
+    def filter_single_clause(self, clause: set[Literal]):
+        clause_post_filter = set()
         always_true = False
         for literal in clause:
             s, m, pos = literal
@@ -219,13 +220,13 @@ class ProblemDescription:
                     always_true = True
                     break
                 else:
-                    clause_post_filter.append(literal)
+                    clause_post_filter.add(literal)
             else:
                 if m_deg < s_deg:
                     # this mapping will never exist, and since it's a positive literal, we can just ignore it
                     pass
                 else:
-                    clause_post_filter.append(literal)
+                    clause_post_filter.add(literal)
         if not always_true:
             return clause_post_filter
         else:
@@ -260,8 +261,8 @@ class CNFFormula:
 
 
     def process_result(self, result: tuple[bool, str]):
-        reverse_vars = {v: k for k,v in self.variables.items()}
-        reverse_sub_vertices = {v: k for k,v in self.problem.subgraph.vertex_map.items()}
+        reverse_vars = {v: k for k, v in self.variables.items()}
+        reverse_sub_vertices = {v: k for k, v in self.problem.subgraph.vertex_map.items()}
         reverse_main_vertices = {v: k for k, v in self.problem.main_graph.vertex_map.items()}
 
         if result[0]:
@@ -303,7 +304,7 @@ def run_solver(solver: str, filename: str, verbosity: int):
     return subprocess.run([solver, '-model', '-verb=' + str(verbosity), filename], stdout=subprocess.PIPE)
 
 
-def parse_result(result: CompletedProcess, should_print: bool):
+def parse_result(result: subprocess.CompletedProcess, should_print: bool):
     model: str | None = None
     satisfiable = False
     output: str = result.stdout.decode('utf-8')
